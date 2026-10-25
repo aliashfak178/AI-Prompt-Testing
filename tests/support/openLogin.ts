@@ -7,6 +7,5 @@ export async function openLoginPage(app: App, browser: Browser): Promise<void> {
   await browser.evaluate(() => {
     window.location.hash = "/login";
   });
-  // SPA router settle
   await browser.waitForURL(/#\/login/, { timeout: 30_000 });
 }

@@ -31,10 +31,14 @@ export default {
   agents: {
     default: {
       model: openai(modelId),
-      maxSteps: 20,
-      maxModelCalls: 20,
-      context:
-        "You are testing the noKodr QA login SPA. Prefer Email mode. Do not invent credentials.",
+      maxSteps: 40,
+      maxModelCalls: 40,
+      context: `You are testing the noKodr QA login SPA (Angular / Salesforce-style inputs).
+Prefer Email mode over Mobile.
+When filling fields: click the field, clear it, then type the COMPLETE value in a single keyboard type/fill action (not one keystroke per turn — that wastes the action budget). Then press Tab to blur.
+If Continue stays disabled after email, clear and re-type the full email once, Tab, then click Continue.
+For password: click the field, type the full password in one action, then click Continue / Log in.
+Do not invent credentials. Use only values from params.`,
     },
   },
   credentials: {

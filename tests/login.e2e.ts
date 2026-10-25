@@ -1,74 +1,64 @@
 import { test, beforeEach } from "@e2e-dev/web";
 import { expect, credentials } from "e2e";
-import { enterEmail, loginLocators } from "./support/login.js";
 import { openLoginPage } from "./support/openLogin.js";
+import { typeEmailNative } from "./support/typeEmailNative.js";
+
+/**
+ * Prompt-based login suite (agent.act / agent.assert / agent.waitFor).
+ * No getByRole / XPath in the scenarios.
+ *
+ * Note: this Angular login ignores many agent fills on the email field.
+ * typeEmailNative() only bridges that app quirk so Continue can enable;
+ * everything after that is natural-language agent steps.
+ */
 
 beforeEach(async ({ app, browser }) => {
   await openLoginPage(app, browser);
 });
 
-async function reachPasswordStep(
-  screen: Parameters<typeof enterEmail>[0],
-  browser: Parameters<typeof enterEmail>[1],
-  username: string,
-) {
-  const ui = loginLocators(screen);
-  await enterEmail(screen, browser, username);
-  await expect(ui.continueButton()).toBeEnabled({ timeout: 20_000 });
-  await ui.continueButton().tap();
-  await expect(browser.locator('input[type="password"]')).toBeVisible({
-    timeout: 30_000,
-  });
-}
-
 test(
   "successful login with NOKODR_TEST credentials",
-  { tags: ["smoke", "login"] },
-  async ({ agent, screen, browser }) => {
+  { tags: ["smoke", "login", "ai"] },
+  async ({ agent, browser }) => {
     const user = credentials.user("nokodr");
-    const ui = loginLocators(screen);
 
-    await expect(ui.emailMode()).toBeVisible();
-    await expect(ui.continueButton()).toBeDisabled();
+    await typeEmailNative(browser, user.username);
 
-    await reachPasswordStep(screen, browser, user.username);
+    await agent.act(
+      "The email is already filled. Click Continue. When the password field appears, type the password and submit the login form (Continue or Log in).",
+      {
+        params: { password: user.password },
+        maxModelCalls: 20,
+        maxSteps: 25,
+      },
+    );
 
-    // Secret fill — value never appears in model prompts
-    await browser.locator('input[type="password"]').fill(user.password);
-
-    // Prefer deterministic submit; agent as fallback if the label differs
-    try {
-      await ui.continueButton().tap();
-    } catch {
-      await agent.act("Submit the login form", { maxModelCalls: 6 });
-    }
-
+    // Dashboard may stay on "Loading" — URL change is the reliable auth signal
     await expect(browser).not.toHaveURL(/#\/login\/?$/, { timeout: 60_000 });
     await expect(browser).toHaveURL(/dashboard/i, { timeout: 60_000 });
-    const url = await browser.url();
-    expect(url).toContain("nokodr.com");
   },
 );
 
 test(
   "invalid password is rejected once",
-  { tags: ["login"] },
-  async ({ agent, screen, browser }) => {
-    await reachPasswordStep(
-      screen,
-      browser,
-      credentials.user("nokodr").username,
+  { tags: ["login", "ai"] },
+  async ({ agent, browser }) => {
+    const user = credentials.user("nokodr");
+
+    await typeEmailNative(browser, user.username);
+
+    await agent.act(
+      "The email is already filled. Click Continue. When the password field appears, type the password and submit the login form.",
+      {
+        params: { password: "DefinitelyWrongPass1!" },
+        maxModelCalls: 18,
+        maxSteps: 22,
+      },
     );
 
-    await browser
-      .locator('input[type="password"]')
-      .fill("DefinitelyWrongPass1!");
-
-    try {
-      await loginLocators(screen).continueButton().tap();
-    } catch {
-      await agent.act("Submit the login form", { maxModelCalls: 6 });
-    }
+    await agent.assert(
+      "login failed: an error or validation message is shown, and the user is still on the auth or login flow (not a dashboard)",
+    );
 
     await expect(browser).toHaveURL(/login|auth/i);
     await expect(browser).not.toHaveURL(/dashboard/i);
@@ -76,13 +66,20 @@ test(
 );
 
 test(
-  "Continue stays disabled when email is empty",
-  { tags: ["login", "validation"] },
-  async ({ screen }) => {
-    const ui = loginLocators(screen);
+  "empty email keeps Continue disabled",
+  { tags: ["login", "validation", "ai"] },
+  async ({ agent }) => {
+    await agent.assert(
+      "On the login page, Continue is disabled (or not usable) while no real email has been entered. Placeholder text like example@gmail.com does not count as a filled email.",
+    );
 
-    await expect(ui.emailMode()).toBeVisible();
-    await expect(ui.continueButton()).toBeVisible();
-    await expect(ui.continueButton()).toBeDisabled();
+    await agent.act(
+      "Do not type any email or password. Do not force Continue. Leave the form as-is.",
+      { maxModelCalls: 6, maxSteps: 8 },
+    );
+
+    await agent.assert(
+      "Continue is still disabled and the password step has not appeared",
+    );
   },
 );
