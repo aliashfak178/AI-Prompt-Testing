@@ -1,0 +1,26 @@
+{
+  "name": "ai-prompt-testing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-assisted E2E login tests for noKodr QA using tester-army/e2e + OpenAI",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "e2e run",
+    "test:e2e:login": "e2e run tests/login.e2e.ts",
+    "test:e2e:headed": "e2e run tests/login.e2e.ts --headed",
+    "test:e2e:no-cache": "e2e run tests/login.e2e.ts --no-cache",
+    "test:e2e:last-failed": "e2e run --last-failed",
+    "test": "e2e run"
+  },
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "devDependencies": {
+    "@ai-sdk/openai": "^4.0.102",
+    "@e2e-dev/web": "^0.15.3",
+    "@types/node": "^26.6.5",
+    "ai": "^7.0.153",
+    "e2e": "^0.21.3",
+    "typescript": "^7.0.2"
+  }
+}
